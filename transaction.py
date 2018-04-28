@@ -233,6 +233,7 @@ def worker(args, i):
     if not os.path.exists('logs'):
         os.system('mkdir -p logs')
     filename = 'logs/{}-{}.log'.format(i, os.getpid())
+    failed_count = 0
     with open(filename, 'w') as f:
         for i in range(args.limit):
             # nonce = client.get_nonce(sender, 'latest')
@@ -253,16 +254,21 @@ def worker(args, i):
             message = eth_sha3(tx.SerializeToString())
             bytecode = make_deploycode(tx, message, args.privkey)
             resp = client.send_transaction(bytecode)
+            result = resp.get('result')
             f.write(json.dumps({
                 'time': str(datetime.now()),
                 'n': i,
-                'result': resp.get('result'),
+                'result': result,
             }))
             f.write('\n')
+            if not result:
+                failed_count += 1
         # print('Time={}, Number: {}, response={}'.format(datetime.now(), i, resp))
 
     t2 = datetime.now()
-    sys.stderr.write('[{}]: end={}, cost={}\n'.format(os.getpid(), t2, t2 - t1))
+    sys.stderr.write('[{}]: end={}, cost={}, failed-count={}\n'.format(
+        os.getpid(), t2, t2 - t1, failed_count
+    ))
 
 
 def main():
