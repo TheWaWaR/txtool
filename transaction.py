@@ -7,6 +7,7 @@ import argparse
 import json
 import sys
 import os
+import random
 from multiprocessing import Process
 
 import sha3
@@ -102,11 +103,15 @@ class Transaction(object):
 
 
 def parse_args():
-    default_to = ''
-    default_quota = 999999
+    # default_to = ''
+    default_to = '0xffffffffffffffffffffffffffffffffffffffff'
+    default_chain_id = 123
+    default_quota = 100000
     default_version = 0
     default_crypto_algo = 'secp256k1'
     default_hash_algo = 'sha3'
+    default_processes = 10
+    default_limit = 5000
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -136,19 +141,20 @@ def parse_args():
     parser.add_argument(
         '--data',
         metavar='STRING',
+        default='xxx',
         help='Transaction content data'
     )
     parser.add_argument(
         '--privkey',
         metavar='STRING',
-        required=True,
+        default='ef98e68db428906d626cd37782cdfb052ac282132beee53a99948738ea553b4a',
         help="Sender's privkey"
     )
     parser.add_argument(
         '--chain-id',
         type=int,
         metavar='INT',
-        required=True,
+        default=default_chain_id,
         help='The chain id of the transaction'
     )
     parser.add_argument(
@@ -185,18 +191,17 @@ def parse_args():
     parser.add_argument(
         '--limit',
         type=int,
-        default=1000,
+        default=default_limit,
         help='Max transactions to send'
     )
     parser.add_argument(
         '--processes',
         type=int,
-        default=10,
+        default=default_processes,
         help='Max processes to spawn'
     )
     parser.add_argument(
         '--url',
-        default='http://127.0.0.1:1337',
         help='The JSONRPC url'
     )
     return parser.parse_args()
@@ -209,13 +214,24 @@ def worker(args, i):
     t1 = datetime.now()
     sys.stderr.write('start={}\n'.format(t1))
 
-    client = JSONRpcClient(args.url)
+    urls = [
+        'http://127.0.0.1:1337',
+        'http://127.0.0.1:1338',
+        'http://127.0.0.1:1339',
+        'http://127.0.0.1:1340',
+    ]
+    url = random.choice(urls) if not args.url else args.url
+    sys.stderr.write('url={}\n'.format(url))
+    client = JSONRpcClient(url)
+
     data = '7' * 1024
     sender = privkey_address(args.privkey)
     valid_until = (
         args.valid_until if args.valid_until is not None
         else client.block_number() + 50
     )
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
     filename = 'logs/{}-{}.log'.format(i, os.getpid())
     with open(filename, 'w') as f:
         for i in range(args.limit):
@@ -246,7 +262,7 @@ def worker(args, i):
         # print('Time={}, Number: {}, response={}'.format(datetime.now(), i, resp))
 
     t2 = datetime.now()
-    sys.stderr.write('end={}, cost={}\n'.format(t2, t2 - t1))
+    sys.stderr.write('[{}]: end={}, cost={}\n'.format(os.getpid(), t2, t2 - t1))
 
 
 def main():
