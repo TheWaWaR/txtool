@@ -256,7 +256,7 @@ def worker(args, i):
             f.write(json.dumps({
                 'time': str(datetime.now()),
                 'n': i,
-                'result': resp['result'],
+                'result': resp.get('result'),
             }))
             f.write('\n')
         # print('Time={}, Number: {}, response={}'.format(datetime.now(), i, resp))
