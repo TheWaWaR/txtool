@@ -1,0 +1,14 @@
+[[package]]
+name = "protobuf"
+version = "1.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "txtool-rs"
+version = "0.1.0"
+dependencies = [
+ "protobuf 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[metadata]
+"checksum protobuf 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "40e2484e639dcae0985fc483ad76ce7ad78ee5aa092751d7d538f0b20d76486b"
