@@ -8,12 +8,14 @@ import json
 import sys
 import os
 import random
+from datetime import datetime
 from multiprocessing import Process
 
 import sha3
 import uuid
-import pysodium
+# import pysodium
 import binascii
+import requests
 from secp256k1 import PrivateKey
 from ecdsa import SigningKey, SECP256k1
 from ethereum.utils import sha3 as eth_sha3
@@ -115,84 +117,13 @@ def parse_args():
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--crypto-algo',
-        default=default_crypto_algo,
-        choices=['ed25519', 'secp256k1', 'sm2'],
-        help='Crypto algorithm to use [default: {}]'.format(default_crypto_algo)
+        '--url',
+        help='The JSONRPC url'
     )
     parser.add_argument(
-        '--hash-algo',
-        default=default_hash_algo,
-        choices=['sha3', 'blake2b', 'sm3'],
-        help='Hash algorithm to use [default: {}]'.format(default_hash_algo)
-    )
-    # FIXME: use a separated subcommand
-    parser.add_argument(
-        '--contract-file',
-        metavar='FILE',
-        help='Solidity contract file to generate bytecode'
-    )
-    # FIXME: use a separated subcommand
-    parser.add_argument(
-        '--contract-name',
-        metavar='STRING',
-        help='Solidity contract name to generate bytecode'
-    )
-    parser.add_argument(
-        '--data',
-        metavar='STRING',
-        default='xxx',
-        help='Transaction content data'
-    )
-    parser.add_argument(
-        '--privkey',
-        metavar='STRING',
-        default='ef98e68db428906d626cd37782cdfb052ac282132beee53a99948738ea553b4a',
-        help="Sender's privkey"
-    )
-    parser.add_argument(
-        '--chain-id',
-        type=int,
-        metavar='INT',
-        default=default_chain_id,
-        help='The chain id of the transaction'
-    )
-    parser.add_argument(
-        '--to',
-        metavar='ADDRESS',
-        default=default_to,
-        help='The address to send [default="{}"]'.format(default_to)
-    )
-    parser.add_argument(
-        '--quota',
-        type=int,
-        metavar='INT',
-        default=default_quota,
-        help='The quota of the transaction [default={}]'.format(default_quota)
-    )
-    parser.add_argument(
-        '--valid-until',
-        type=int,
-        metavar='INT',
-        help='Valid until a block number'
-    )
-    parser.add_argument(
-        '--version',
-        type=int,
-        metavar='INT',
-        default=default_version,
-        help='The transaction version [default={}]'.format(default_version)
-    )
-    parser.add_argument(
-        '--get-receipt',
-        action='store_true',
-        help='Get the receipt of the transaction after send a transaction'
-    )
-    parser.add_argument(
-        '--limit',
-        type=int,
-        default=default_limit,
-        help='Max transactions to send'
+        '--ip',
+        default='127.0.0.1',
+        help='The JSONRPC ip'
     )
     parser.add_argument(
         '--processes',
@@ -200,32 +131,143 @@ def parse_args():
         default=default_processes,
         help='Max processes to spawn'
     )
-    parser.add_argument(
-        '--url',
-        help='The JSONRPC url'
+
+    ps = parser.add_subparsers()
+    parser_submit = ps.add_parser('submit')
+    parser_submit.set_defaults(func=submit, cmd='submit')
+    parser_check = ps.add_parser('check')
+    parser_check.set_defaults(func=check, cmd='check')
+
+    parser_submit.add_argument(
+        '--crypto-algo',
+        default=default_crypto_algo,
+        choices=['ed25519', 'secp256k1', 'sm2'],
+        help='Crypto algorithm to use [default: {}]'.format(default_crypto_algo)
+    )
+    parser_submit.add_argument(
+        '--hash-algo',
+        default=default_hash_algo,
+        choices=['sha3', 'blake2b', 'sm3'],
+        help='Hash algorithm to use [default: {}]'.format(default_hash_algo)
+    )
+    # FIXME: use a separated subcommand
+    parser_submit.add_argument(
+        '--contract-file',
+        metavar='FILE',
+        help='Solidity contract file to generate bytecode'
+    )
+    # FIXME: use a separated subcommand
+    parser_submit.add_argument(
+        '--contract-name',
+        metavar='STRING',
+        help='Solidity contract name to generate bytecode'
+    )
+    parser_submit.add_argument(
+        '--data',
+        metavar='STRING',
+        default='xxx',
+        help='Transaction content data'
+    )
+    parser_submit.add_argument(
+        '--privkey',
+        metavar='STRING',
+        default='ef98e68db428906d626cd37782cdfb052ac282132beee53a99948738ea553b4a',
+        help="Sender's privkey"
+    )
+    parser_submit.add_argument(
+        '--chain-id',
+        type=int,
+        metavar='INT',
+        default=default_chain_id,
+        help='The chain id of the transaction'
+    )
+    parser_submit.add_argument(
+        '--to',
+        metavar='ADDRESS',
+        default=default_to,
+        help='The address to send [default="{}"]'.format(default_to)
+    )
+    parser_submit.add_argument(
+        '--quota',
+        type=int,
+        metavar='INT',
+        default=default_quota,
+        help='The quota of the transaction [default={}]'.format(default_quota)
+    )
+    parser_submit.add_argument(
+        '--valid-until',
+        type=int,
+        metavar='INT',
+        help='Valid until a block number'
+    )
+    parser_submit.add_argument(
+        '--version',
+        type=int,
+        metavar='INT',
+        default=default_version,
+        help='The transaction version [default={}]'.format(default_version)
+    )
+    parser_submit.add_argument(
+        '--get-receipt',
+        action='store_true',
+        help='Get the receipt of the transaction after send a transaction'
+    )
+    parser_submit.add_argument(
+        '--limit',
+        type=int,
+        default=default_limit,
+        help='Max transactions to send'
     )
     return parser.parse_args()
 
 
-def worker(args, i):
+def get_url(ip):
+    return 'http://{}:{}'.format(ip, random.choice([1337, 1338, 1339, 1340]))
+
+
+def check(args, path):
     sys.stderr.write('Args={}\n'.format(args))
 
-    from datetime import datetime
+    t1 = datetime.now()
+    url = get_url(args.ip) if not args.url else args.url
+    sys.stderr.write('start={}, url={}\n'.format(t1, url))
+
+    failed_count = 0
+    success_count = 0
+    with open(path) as f:
+        for line in f:
+            data = json.loads(line)
+            if not data['result']:
+                failed_count += 1
+            else:
+                tx_hash = data['result']['hash']
+                resp = requests.post(url, json={
+                    'id': 1,
+                    'jsonrpc': '2.0',
+                    'method': 'cita_getTransaction',
+                    'params': [tx_hash]
+                }).json()
+                if len(resp['result']['content']) > 1024:
+                    success_count += 1
+                else:
+                    failed_count += 1
+    t2 = datetime.now()
+    sys.stderr.write('[{}]: end={}, cost={}, success={} failed={}\n'.format(
+        os.getpid(), t2, t2 - t1, success_count, failed_count
+    ))
+
+
+def submit(args, i):
+    sys.stderr.write('Args={}\n'.format(args))
     t1 = datetime.now()
     sys.stderr.write('start={}\n'.format(t1))
 
-    urls = [
-        'http://192.168.2.191:1337',
-        'http://192.168.2.191:1338',
-        'http://192.168.2.191:1339',
-        'http://192.168.2.191:1340',
-    ]
-    url = random.choice(urls) if not args.url else args.url
+    url = get_url(args.ip) if not args.url else args.url
     sys.stderr.write('url={}\n'.format(url))
     client = JSONRpcClient(url)
 
     data = '7' * 1024
-    sender = privkey_address(args.privkey)
+    # sender = privkey_address(args.privkey)
     valid_until = (
         args.valid_until if args.valid_until is not None
         else client.block_number() + 50
@@ -274,13 +316,22 @@ def worker(args, i):
 def main():
     args = parse_args()
     processes = []
-    for i in range(args.processes):
-        p = Process(target=worker, args=(args, i))
-        p.start()
-        processes.append(p)
+
+    if args.cmd == 'check':
+        for filename in os.listdir('logs'):
+            path = os.path.join('logs', filename)
+            if os.path.isfile(path):
+                p = Process(target=args.func, args=(args, path))
+                p.start()
+                processes.append(p)
+    elif args.cmd == 'submit':
+        for i in range(args.processes):
+            p = Process(target=args.func, args=(args, i))
+            p.start()
+            processes.append(p)
 
     [p.join() for p in processes]
-    print('>>> ALL DONE')
+    print('>>> [{}] ALL DONE'.format(args.cmd))
 
 
 if __name__ == '__main__':
