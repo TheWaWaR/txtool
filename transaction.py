@@ -215,10 +215,10 @@ def worker(args, i):
     sys.stderr.write('start={}\n'.format(t1))
 
     urls = [
-        'http://127.0.0.1:1337',
-        'http://127.0.0.1:1338',
-        'http://127.0.0.1:1339',
-        'http://127.0.0.1:1340',
+        'http://192.168.2.191:1337',
+        'http://192.168.2.191:1338',
+        'http://192.168.2.191:1339',
+        'http://192.168.2.191:1340',
     ]
     url = random.choice(urls) if not args.url else args.url
     sys.stderr.write('url={}\n'.format(url))
