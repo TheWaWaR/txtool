@@ -231,7 +231,7 @@ def worker(args, i):
         else client.block_number() + 50
     )
     if not os.path.exists('logs'):
-        os.mkdir('logs')
+        os.system('mkdir -p logs')
     filename = 'logs/{}-{}.log'.format(i, os.getpid())
     with open(filename, 'w') as f:
         for i in range(args.limit):
